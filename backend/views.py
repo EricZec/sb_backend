@@ -1,6 +1,5 @@
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
-from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
@@ -11,18 +10,21 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from .serializers import UserCreateSerializer
 from . import models, serializers, filters
-from django.db.models import Q
+from django.db.models import Q, Count
 from .paginations import PageNumberPagination
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from django.http import HttpResponse
+from django.http import Http404
 from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-from datetime import datetime, timedelta
+from datetime import timedelta
 from django.utils import timezone
 import requests
 import midtransclient
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 def activate_account(request, uid, token):
     activation_url = f"http://127.0.0.1:8000/auth/users/activation/"
@@ -39,7 +41,14 @@ def activate_account(request, uid, token):
         return redirect('http://localhost:4200/login')  # Redirect to your Angular login page
     else:
         # Handle activation error, maybe redirect to an error page
-        return redirect('http://your-angular-app-url/activation-error')
+        return redirect('')
+
+def reset_password(request, uid, token):
+    # Assuming your Angular page URL is 'http://localhost:4200/reset'
+    angular_reset_url = 'http://localhost:4200/reset/?uid={}&token={}'.format(uid, token)
+    return redirect(angular_reset_url)
+    
+
 
 class CustomPagination(PageNumberPagination):
     page_size = 20
@@ -57,7 +66,7 @@ class OrderViewSet(mixins.CreateModelMixin,
                    mixins.ListModelMixin,
                    viewsets.GenericViewSet):
     serializer_class = serializers.OrderSerializer
-    permission_classes = [permissions.AllowAny ]
+    permission_classes = [permissions.IsAuthenticated | IsAdminUser ]
     pagination_class = PageNumberPagination
     filterset_class = filters.OrderFilter
   
@@ -66,7 +75,8 @@ class OrderViewSet(mixins.CreateModelMixin,
         queryset = models.Order.objects.all().order_by('-id')
         
         if not user.is_staff:
-            queryset = queryset.filter(customer=user)
+            customer = get_object_or_404(models.Customer, user=user)
+            queryset = queryset.filter(customer=customer)
 
         # Apply filters from request parameters
         order_time_min = self.request.query_params.get('order_time_min')
@@ -162,6 +172,8 @@ class OrderViewSet(mixins.CreateModelMixin,
         else:
             return Response({"error": "Order cannot be canceled in the current state"}, status=400)
         
+    
+        
     def cancel_pending_orders(self):
         # Calculate the datetime threshold for checking orders
         threshold_datetime = timezone.now() - timedelta(minutes=5)
@@ -207,7 +219,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
             return serializers.CartItemSerializer
 
 class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = models.Category.objects.all()
+    queryset = models.Category.objects.annotate(product_count=Count('product'))
     serializer_class = serializers.CategorySerializer
 
 class ProductViewSet(mixins.ListModelMixin,
@@ -232,9 +244,28 @@ class ProductViewSet(mixins.ListModelMixin,
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=["GET", "POST"])  # Add POST to support product creation
+    def search_product(self, request):
+        target_title = request.query_params.get('q', '').strip()
+
+        print("Search Keyword:", target_title)
+
+        if target_title:
+            queryset = self.get_queryset()
+            matching_products = [product for product in queryset if target_title.lower() in product.title.lower()]
+            if matching_products:
+                serializer = self.get_serializer(matching_products, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': f"No products found matching '{target_title}'"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    
+    @action(detail=False, methods=[ "POST"])  # Add POST to support product creation
     def create_product(self, request):
-        serializer = self.get_serializer(data=request.data)
+        serializer = serializers.CreateProductSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         product = serializer.save()  # Save the product to the database
         return Response(serializers.ProductSerializer(product).data, status=status.HTTP_201_CREATED)
@@ -256,15 +287,18 @@ class ProductViewSet(mixins.ListModelMixin,
     def get_queryset(self):
         queryset = super().get_queryset()
         sort_param = self.request.query_params.get('sort', None)
-        search_query = self.request.query_params.get('q', None)
+        search_query = self.request.query_params.get('search', None)
         price_sort = self.request.query_params.get('price_sort', None)
-        
+        category_filter = self.request.query_params.get('category', None) 
         
         # Apply search filtering using Q objects
         if search_query:
             queryset = queryset.filter(
                 Q(title__icontains=search_query) | Q(description__icontains=search_query)
             )
+
+        if category_filter:
+            queryset = queryset.filter(category__name=category_filter)
 
         if sort_param == 'oldest':
             queryset = queryset.order_by('create_at')
@@ -416,7 +450,13 @@ class Transaction(APIView):
             },
             "credit_card": {
                 "secure": True
-            }
+            },
+            "customer_details": {
+                "first_name": request.user.first_name,
+                "last_name": request.user.last_name,
+                "email": request.user.email,
+                "phone": request.user.customer.phone
+    }
         }
         transaction = snap.create_transaction(param)
         transaction_token = transaction['token']

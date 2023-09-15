@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-ch^3q#nlu^rr^s!6j^szh#den+q2gt#8)9)56-5jf#ne$w$kr9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['103.175.218.74']
+ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -149,7 +149,8 @@ import os
 from datetime import timedelta
 
 # Actual directory user files go to
-MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'mediafiles')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'mediafiles')
+
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:4200',
@@ -214,15 +215,5 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
-    },
-}
-
-
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Configure the broker URL as per your setup
-CELERY_TIMEZONE = 'UTC'
-CELERY_BEAT_SCHEDULE = {
-    'cancel-pending-orders': {
-        'task': 'tasks.cancel_pending_orders',
-        'schedule': timedelta(minutes=1),
     },
 }

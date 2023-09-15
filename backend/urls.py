@@ -8,9 +8,12 @@ urlpatterns = [
     path('midtrans/snap/token/', views.Transaction.as_view(), name='midtrans_snap_token'),
     path('verify-admin-status/', views.VerifyAdminStatusView.as_view(), name='verify_admin_status'),
     path('products/<slug:slug>/update_product/', views.ProductViewSet.as_view({'put': 'update_product'}), name='update_product'),
+    path('products/', views.ProductViewSet.as_view({'get': 'search_product'}), name='product-search'),
+    path('products/create_product/', views.ProductViewSet.as_view({'post': 'create_product'}), name='product-create'),
     path('orders/<int:order_id>/complete_payment/', views.OrderViewSet.as_view({'post': 'complete_payment'}), name='complete_payment'),
     path('orders/<int:order_id>/cancel_order/', views.OrderViewSet.as_view({'post': 'cancel_order'}), name='cancel-order'),
     path('activate/<str:uid>/<str:token>/', views.activate_account, name='activate_account'),
+    path('password/reset/confirm/<str:uid>/<str:token>/', views.reset_password, name='reset_password'),
     
 ]
 

@@ -51,9 +51,11 @@ class CreateCustomerSerializer(serializers.ModelSerializer):
         fields = ['phone', 'address']
 
 class CategorySerializer(serializers.ModelSerializer):
+    product_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = models.Category
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'product_count']
 
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -103,7 +105,7 @@ class CreateReviewSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Product
-        fields = ['id', 'title', 'slug', 'category', 'description', 'unit_price', 'inventory', 'limit', 'is_active', 'images', 'average_rating', 'review_count', 'reviews']
+        fields = ['id', 'title', 'sku', 'slug', 'category', 'description', 'unit_price', 'inventory', 'limit', 'is_active', 'images', 'average_rating', 'review_count', 'reviews']
 
     slug = serializers.CharField(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
