@@ -19,19 +19,21 @@ class CustomerSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
+    is_active = serializers.BooleanField(source='user.is_active')
 
     class Meta:
         model = models.Customer
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'address']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone', 'address', 'is_active']
 
 
 class UpdateCustomerSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField()
     last_name = serializers.CharField()
+    is_active = serializers.BooleanField(source='user.is_active')
 
     class Meta:
         model = models.Customer
-        fields = ['id', 'first_name', 'last_name', 'phone', 'address']
+        fields = ['id', 'first_name', 'last_name', 'phone', 'address','is_active']
 
 
 class CreateUserCustomerSerializer(serializers.ModelSerializer):

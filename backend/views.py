@@ -310,7 +310,6 @@ class ProductViewSet(mixins.ListModelMixin,
         elif price_sort == 'expensive':
             queryset = queryset.order_by('-unit_price')
 
-
         return queryset
     
     
@@ -372,6 +371,23 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, customer):
         super().perform_destroy(customer)
         customer.user.delete()
+
+    def change_user_active_status(self, request, user_id):
+        customer = self.get_object()
+        user_id = request.data.get('user_id')  # Assuming 'user_id' is sent in the request data
+
+        if user_id:
+            try:
+                user = customer.user  # Assuming there is a ForeignKey from Customer to User
+                user.is_active = request.data.get('is_active')
+                user.save()
+                return Response({"message": f"User active status has been updated."}, status=status.HTTP_200_OK)
+            except models.User.DoesNotExist:
+                return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"error": "Missing 'user_id' field in the request data."}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class ReviewViewSet(viewsets.ModelViewSet):

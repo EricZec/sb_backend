@@ -14,6 +14,7 @@ urlpatterns = [
     path('orders/<int:order_id>/cancel_order/', views.OrderViewSet.as_view({'post': 'cancel_order'}), name='cancel-order'),
     path('activate/<str:uid>/<str:token>/', views.activate_account, name='activate_account'),
     path('password/reset/confirm/<str:uid>/<str:token>/', views.reset_password, name='reset_password'),
+    path('customers/<int:user_id>/change_user_active_status/', views.CustomerViewSet.as_view({'put': 'change_user_active_status'}), name='change-user-active-status'),
     
 ]
 
